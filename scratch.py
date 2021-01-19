@@ -8,9 +8,10 @@ import pandas as pd
 CID='6edd75f2e0c5465a98ef5b9a6678f54e'
 SECRET='814350f64e5241959bd1f5d94c9854bf'
 username = ''
-user = 'prezzy318'
+#user = 'prezzy318'
 
-REDIRECT = 'https://soundcloud.com/costikyan'
+#REDIRECT = 'https://soundcloud.com/costikyan'
+REDIRECT = 'https://developer.spotify.com/discover/'
 
 #Defining scope of app access
 scope = "user-library-read playlist-modify-public playlist-read-private"
@@ -78,7 +79,6 @@ def filter_happy(songs, happysad):
         happy_filtered = happy_filtered[happy_filtered['valence'] > .33]
     return happy_filtered
 
-
 def filter_acoustic(songs, acousticness):
     """Provide 'liked songs' dataframe, and 'acoustic', 'electronic', or 'mixed' to have
     filtered songs returned"""
@@ -86,11 +86,41 @@ def filter_acoustic(songs, acousticness):
         acousticness_filtered = songs[songs['acousticness'] >.66]
     if acousticness == 'electronic':
         acousticness_filtered = songs[songs['acousticness'] < .33]
-    if acousticness == 'mixed':
+    if acousticness == 'both':
         acousticness_filtered = songs[songs['acousticness'] < .66]
         acousticness_filtered = acousticness_filtered[acousticness_filtered['acousticness'] > .33]
     return acousticness_filtered
 
+def filter_dancey(songs, dancerelax):
+    """Provide 'liked songs' dataframe, and 'happy', 'sad', or 'mixed' to have
+    filtered songs returned"""
+    if dancerelax == 'dance':
+        dancey_filtered = songs[songs['danceability'] >.66]
+    if dancerelax == 'relax':
+        dancey_filtered = songs[songs['danceability'] < .33]
+    if dancerelax == 'mixed':
+        dancey_filtered = songs[songs['danceability'] < .66]
+        dancey_filtered = dancey_filtered[dancey_filtered['valence'] > .33]
+    return dancey_filtered
+
+def filter_vocals(songs, vocals):
+    """Provide 'liked songs' dataframe, and 'happy', 'sad', or 'mixed' to have
+    filtered songs returned"""
+    if vocals == 'no vox':
+        vocals_filtered = songs[songs['instrumentalness'] >.66]
+    if vocals == 'vox':
+        vocals_filtered = songs[songs['instrumentalness'] < .33]
+    if vocals == 'both':
+        vocals_filtered = songs[songs['instrumentalness'] < .66]
+        vocals_filtered = vocals_filtered[vocals_filtered['valence'] > .33]
+    return vocals_filtered
+
+
+#testing filtering
+test_recs = filter_happy(liked_songs, 'happy')
+test_recs = filter_acoustic(test_recs, 'electronic')
+test_recs = filter_dancey(test_recs, 'dance')
+test_recs = filter_vocals(test_recs, 'vox')
 
 
 #test sourcing song data
@@ -136,7 +166,9 @@ for item in recs['tracks']:
     recs_tracks.append(item['uri'])
 
 #testing creating the new playlist
-recs_details = sp.user_playlist_create(user, 'Recs Test2', public=True, collaborative=False, description='Testing recommendation python script')
+user = sp.me()['display_name']
+
+recs_details = sp.user_playlist_create(user, 'Recs Test4', public=True, collaborative=False, description='Testing recommendation python script')
 playlist_id = recs_details['id']
 
 sp.user_playlist_add_tracks(user, playlist_id, recs_tracks, position=None)
