@@ -3,6 +3,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy
 import spotipy.util as util
 import pandas as pd
+import random
 
 def login():
     # Define app access credentials
@@ -18,6 +19,7 @@ def login():
     # Connecting to spotify web API
     client_credentials_manager = SpotifyClientCredentials(client_id=CID, client_secret=SECRET)
     sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    token = 'blank'
     token = util.prompt_for_user_token(username, scope, CID, SECRET, REDIRECT)
 
     if token:
@@ -67,77 +69,108 @@ def pull_library_info(sp):
     return liked_songs
 
 
-def filter_happy(songs, happysad):
+def filter_happy(songs, happysad, ratio):
     """Provide 'liked songs' dataframe, and 'happy', 'sad', or 'mixed' to have
     filtered songs returned"""
+    to_sort = songs.copy()
+    count = len(songs)
     if happysad == 'happy':
-        happy_filtered = songs[songs['valence'] >.66]
+        happy_filtered = to_sort.sort_values(['valence'], ascending = False).head(int(count*ratio))
     if happysad == 'sad':
-        happy_filtered = songs[songs['valence'] < .33]
+        happy_filtered = to_sort.sort_values(['valence']).head(int(count*ratio))
     if happysad == 'mixed':
-        happy_filtered = songs[songs['valence'] < .66]
-        happy_filtered = happy_filtered[happy_filtered['valence'] > .33]
+        happy_filtered = to_sort.sort_values(['valence'])[int(count*ratio):count-(int(count*ratio))]
     return happy_filtered
-def filter_acoustic(songs, acousticness):
-    """Provide 'liked songs' dataframe, and 'acoustic', 'electronic', or 'mixed' to have
+
+def filter_acoustic(songs, acousticness, ratio):
+    """Provide 'liked songs' dataframe, and 'acoustic', 'electronic', or 'both' to have
     filtered songs returned"""
+    to_sort = songs.copy()
+    count = len(songs)
     if acousticness == 'acoustic':
-        acousticness_filtered = songs[songs['acousticness'] >.66]
+        acousticness_filtered = to_sort.sort_values(['acousticness'], ascending = False).head(int(count*ratio))
     if acousticness == 'electronic':
-        acousticness_filtered = songs[songs['acousticness'] < .33]
+        acousticness_filtered = to_sort.sort_values(['acousticness']).head(int(count*ratio))
     if acousticness == 'both':
-        acousticness_filtered = songs[songs['acousticness'] < .66]
-        acousticness_filtered = acousticness_filtered[acousticness_filtered['acousticness'] > .33]
+        acousticness_filtered = to_sort.sort_values(['acousticness'])[int(count*ratio):count-(int(count*ratio))]
     return acousticness_filtered
-def filter_dancey(songs, dancerelax):
-    """Provide 'liked songs' dataframe, and 'happy', 'sad', or 'mixed' to have
+
+def filter_dancey(songs, dancerelax, ratio):
+    """Provide 'liked songs' dataframe, and 'dance', 'relax', or 'both' to have
     filtered songs returned"""
+    to_sort = songs.copy()
+    count = len(songs)
     if dancerelax == 'dance':
-        dancey_filtered = songs[songs['danceability'] >.66]
+        dancey_filtered = to_sort.sort_values(['danceability'], ascending = False).head(int(count*ratio))
     if dancerelax == 'relax':
-        dancey_filtered = songs[songs['danceability'] < .33]
-    if dancerelax == 'mixed':
-        dancey_filtered = songs[songs['danceability'] < .66]
-        dancey_filtered = dancey_filtered[dancey_filtered['valence'] > .33]
+        dancey_filtered = to_sort.sort_values(['danceability']).head(int(count*ratio))
+    if dancerelax == 'both':
+        dancey_filtered = to_sort.sort_values(['danceability'])[int(count*ratio):count-(int(count*ratio))]
     return dancey_filtered
 
-def filter_vocals(songs, vocals):
-    """Provide 'liked songs' dataframe, and 'happy', 'sad', or 'mixed' to have
+def filter_vocals(songs, vocals, ratio):
+    """Provide 'liked songs' dataframe, and 'vox', 'no vox', or 'both' to have
     filtered songs returned"""
+    to_sort = songs.copy()
+    count = len(songs)
     if vocals == 'no vox':
-        vocals_filtered = songs[songs['instrumentalness'] >.66]
+        vocals_filtered = to_sort.sort_values(['instrumentalness'], ascending = False).head(int(count*ratio))
     if vocals == 'vox':
-        vocals_filtered = songs[songs['instrumentalness'] < .33]
+        vocals_filtered = to_sort.sort_values(['instrumentalness']).head(int(count*ratio))
     if vocals == 'both':
-        vocals_filtered = songs[songs['instrumentalness'] < .66]
-        vocals_filtered = vocals_filtered[vocals_filtered['valence'] > .33]
+        vocals_filtered = to_sort.sort_values(['instrumentalness'])[int(count*ratio):count-(int(count*ratio))]
     return vocals_filtered
 
-def filter_songs(liked_songs, inputs):
+def filter_songs(liked_songs, inputs, ratio):
     input1, input2, input3, input4 = inputs
-    reference_songs = filter_happy(liked_songs, input1)
-    reference_songs = filter_acoustic(reference_songs, input2)
-    reference_songs = filter_dancey(reference_songs, input3)
-    reference_songs = filter_vocals(reference_songs, input4)
+    reference_songs = filter_happy(liked_songs, input1, ratio)
+    reference_songs = filter_acoustic(reference_songs, input2, ratio)
+    reference_songs = filter_dancey(reference_songs, input3, ratio)
+    reference_songs = filter_vocals(reference_songs, input4, ratio)
+    print(len(reference_songs))
     return reference_songs
 
-def retrieve_recs(references, sp):
+def descriptions(inputs):
+    input1, input2, input3, input4 = inputs
+    input1_dict = {'happy':'happy playlist', 'sad':'sad playlist', 'mixed':'playlist with mixed emotions'}
+    input2_dict = {'acoustic':'mostly acoustic','electronic':'mostly electronic', 'both':'both acoustic and electronic'}
+    input3_dict = {'dance':'dancey vibes', 'relax':'relaxed vibes', 'both':'vibes somewhere between dancey and relaxed'}
+    input4_dict = {'vox':'lots of vocals', 'no vox':'hopefully no vocals', 'both':'some vocals here and there'}
+    attributes = input1_dict[input1], input2_dict[input2], input3_dict[input3], input4_dict[input4]
+    return attributes
+
+def retrieve_recs(references, sp, inputs):
 
     song_uris = [uri for uri in references['URI']]
-    song_uris = song_uris[0:4]
+    if len(song_uris) > 5:
+        song_uris = random.sample(song_uris, 5)
+
     print(song_uris)
 
-    recs = sp.recommendations(seed_artists=[], seed_tracks=song_uris, seed_genres=[], limit=30)
+    recs = sp.recommendations(seed_artists=[], seed_tracks=song_uris, seed_genres=[], limit=100)
 
     # converting recs into list of track uris
     recs_tracks = []
     for item in recs['tracks']:
         recs_tracks.append(item['uri'])
 
+    #adding features data to recs
+#    features = []
+#    for track in recs_tracks:
+#        song_features = sp.audio_features(tracks=track)
+#        features.extend(song_features)
+
+#    features = pd.DataFrame(features)
+#    recs_tracks = pd.DataFrame(recs_tracks)
+#    recs = recs_tracks.join(features)
+
+    #filtering recs based on input choices
+#    filtered_recs = filter_songs(recs, inputs, ratio=.75)
+
     # testing creating the new playlist
     user = sp.me()['display_name']
 
-    playlist_name = 'Discovery²'
+    playlist_name = 'Discovery²2'
 
     recs_details = sp.user_playlist_create(user, playlist_name, public=True, collaborative=False,
                                            description='Testing recommendation python script')
@@ -151,7 +184,7 @@ def run(inputs):
     print(inputs)
     sp = login()
     library = pull_library_info(sp)
-    references = filter_songs(library, inputs)
-    user = retrieve_recs(references, sp)
+    references = filter_songs(library, inputs, ratio=1/3)
+    user = retrieve_recs(references, sp, inputs)
 
 
